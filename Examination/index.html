@@ -1,0 +1,1151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>DREAM HOUSE</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/aframe/1.4.2/aframe.min.js"></script>
+  <style>
+    body { margin: 0; overflow: hidden; background: #000; }
+    #loading-screen {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      z-index: 9999; transition: opacity 0.8s ease;
+    }
+    #loading-screen h1 {
+      color: #d4af37; font-family: 'Georgia', serif;
+      font-size: 2.5em; letter-spacing: 0.3em; margin-bottom: 10px;
+      text-shadow: 0 0 30px rgba(212,175,55,0.5);
+    }
+    #loading-screen p { color: #aaa; font-family: sans-serif; letter-spacing: 0.2em; }
+    .loader {
+      width: 200px; height: 3px; background: #222;
+      border-radius: 3px; margin-top: 30px; overflow: hidden;
+    }
+    .loader-bar {
+      height: 100%; width: 0%; background: linear-gradient(90deg, #d4af37, #f0d060);
+      border-radius: 3px; animation: load 2.5s ease forwards;
+    }
+    @keyframes load { to { width: 100%; } }
+    #ui-overlay {
+      position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+      display: flex; gap: 10px; z-index: 100; pointer-events: none;
+    }
+    .room-btn {
+      background: rgba(20,20,30,0.85); color: #d4af37;
+      border: 1px solid #d4af37; padding: 8px 16px;
+      border-radius: 20px; font-family: sans-serif; font-size: 12px;
+      cursor: pointer; pointer-events: all; letter-spacing: 0.1em;
+      transition: all 0.2s; backdrop-filter: blur(6px);
+    }
+    .room-btn:hover { background: rgba(212,175,55,0.2); }
+  </style>
+</head>
+<body>
+
+<div id="loading-screen">
+  <h1>✦ DREAM VILLA ✦</h1>
+  <p>LUXURY VR EXPERIENCE</p>
+  <div class="loader"><div class="loader-bar"></div></div>
+</div>
+
+<div id="ui-overlay">
+  <button class="room-btn" onclick="teleport(-2, 1.6, 2)">🛋 Living Room</button>
+  <button class="room-btn" onclick="teleport(-2, 1.6, -12)">🛏 Bedroom</button>
+  <button class="room-btn" onclick="teleport(8, 1.6, 2)">🍳 Kitchen</button>
+  <button class="room-btn" onclick="teleport(0, 1.6, 18)">🏊 Pool</button>
+  <button class="room-btn" onclick="teleport(0, 1.6, 30)">🚗 Gate</button>
+</div>
+
+<script>
+  // Teleport function
+  function teleport(x, y, z) {
+    const cam = document.querySelector('#camera');
+    if (cam) cam.setAttribute('position', {x, y, z});
+  }
+
+  // Register custom components
+  AFRAME.registerComponent('water-wave', {
+    schema: { speed: {default: 1}, amplitude: {default: 0.1} },
+    init() { this.t = 0; },
+    tick(time, delta) {
+      this.t += delta * 0.001 * this.data.speed;
+      const y = Math.sin(this.t * 2) * this.data.amplitude - 0.05;
+      this.el.setAttribute('position', `0 ${y} 0`);
+      const mat = this.el.getAttribute('material');
+      this.el.setAttribute('material', 'opacity', 0.75 + Math.sin(this.t) * 0.1);
+    }
+  });
+
+  AFRAME.registerComponent('float-anim', {
+    schema: { speed: {default: 1}, height: {default: 0.15} },
+    init() { this.t = 0; this.base = null; },
+    tick(time, delta) {
+      if (!this.base) this.base = { ...this.el.getAttribute('position') };
+      this.t += delta * 0.001 * this.data.speed;
+      const pos = this.el.getAttribute('position');
+      this.el.setAttribute('position', {
+        x: this.base.x, y: this.base.y + Math.sin(this.t) * this.data.height, z: this.base.z
+      });
+    }
+  });
+
+  AFRAME.registerComponent('rotate-y', {
+    schema: { speed: {default: 30} },
+    tick(time, delta) {
+      const rot = this.el.getAttribute('rotation');
+      this.el.setAttribute('rotation', { x: rot.x, y: rot.y + this.data.speed * delta / 1000, z: rot.z });
+    }
+  });
+
+  AFRAME.registerComponent('fan-spin', {
+    tick(time, delta) {
+      const rot = this.el.getAttribute('rotation');
+      this.el.setAttribute('rotation', { x: rot.x, y: rot.y + 180 * delta / 1000, z: rot.z });
+    }
+  });
+
+  // Hide loading screen
+  window.addEventListener('load', () => {
+    setTimeout(() => {
+      const ls = document.getElementById('loading-screen');
+      ls.style.opacity = '0';
+      setTimeout(() => ls.style.display = 'none', 800);
+    }, 2800);
+  });
+</script>
+
+<a-scene
+  id="scene"
+  background="color: #87CEEB"
+  fog="type: linear; color: #c8e8ff; near: 40; far: 90"
+  renderer="antialias: true; colorManagement: true; physicallyCorrectLights: true"
+  stats="false">
+
+  <!-- ==================== ASSETS ==================== -->
+  <a-assets timeout="10000">
+    <!-- Procedural textures via canvas -->
+    <canvas id="mosaic" width="64" height="64" style="display:none"></canvas>
+  </a-assets>
+
+  <script>
+    // Mosaic tile texture
+    const canvas = document.getElementById('mosaic');
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#0077be';
+    ctx.fillRect(0, 0, 64, 64);
+    ctx.strokeStyle = '#add8e6';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(32, 0); ctx.lineTo(32, 64);
+    ctx.moveTo(0, 32); ctx.lineTo(64, 32);
+    ctx.stroke();
+  </script>
+
+  <!-- ==================== SKY & ENVIRONMENT ==================== -->
+  <a-sky color="#87CEEB"></a-sky>
+
+  <!-- Sun -->
+  <a-light type="directional" position="20 40 10" intensity="1.8" color="#fff5e0" castShadow="true"></a-light>
+  <!-- Ambient -->
+  <a-light type="ambient" intensity="0.5" color="#cce8ff"></a-light>
+  <!-- Hemisphere -->
+  <a-light type="hemisphere" color="#87CEEB" groundColor="#8B7355" intensity="0.4"></a-light>
+
+  <!-- Ground -->
+  <a-plane position="0 0 0" rotation="-90 0 0" width="80" height="80" color="#5d8a3c" shadow></a-plane>
+  <!-- Driveway -->
+  <a-box position="25 0.01 5" rotation="-90 0 0" width="7" height="30" depth="0.05" color="#999"></a-box>
+  <!-- Garden path -->
+  <a-box position="0 0.01 10" rotation="-90 0 0" width="2" height="12" depth="0.05" color="#c8b88a"></a-box>
+
+  <!-- ==================== VILLA STRUCTURE ==================== -->
+
+  <!-- === MAIN BUILDING === -->
+  <!-- Ground Floor Walls -->
+  <!-- Front Wall -->
+  <a-box position="0 3 7" width="24" height="6" depth="0.4" color="#f5efe6" shadow></a-box>
+  <!-- Back Wall -->
+  <a-box position="0 3 -13" width="24" height="6" depth="0.4" color="#f5efe6" shadow></a-box>
+  <!-- Left Wall -->
+  <a-box position="-12 3 -3" width="0.4" height="6" depth="20" color="#ede8df" shadow></a-box>
+  <!-- Right Wall -->
+  <a-box position="12 3 -3" width="0.4" height="6" depth="20" color="#ede8df" shadow></a-box>
+  <!-- Floor (ground floor) -->
+  <a-box position="0 0.1 -3" width="24" height="0.2" depth="20" color="#e8dcc8" shadow></a-box>
+  <!-- Ceiling (ground floor) -->
+  <a-box position="0 6.0 -3" width="24" height="0.2" depth="20" color="#f0ece4"></a-box>
+
+  <!-- Interior wall: divides living/bedroom from kitchen/garage side (left-right) -->
+  <!-- Back section (bedroom side) -->
+  <a-box position="4 3 -10" width="0.3" height="6" depth="6" color="#e8e0d4"></a-box>
+  <!-- Middle section above kitchen door -->
+  <a-box position="4 5 -1" width="0.3" height="2" depth="2" color="#e8e0d4"></a-box>
+  <!-- Front section -->
+  <a-box position="4 3 3.5" width="0.3" height="6" depth="7" color="#e8e0d4"></a-box>
+
+  <!-- Interior wall: bedroom divider (front-back) -->
+  <!-- Left section -->
+  <a-box position="-8 3 -7" width="8" height="6" depth="0.3" color="#e8e0d4"></a-box>
+  <!-- Middle section above bedroom door -->
+  <a-box position="-3 5 -7" width="2" height="2" depth="0.3" color="#e8e0d4"></a-box>
+  <!-- Right section -->
+  <a-box position="5 3 -7" width="14" height="6" depth="0.3" color="#e8e0d4"></a-box>
+
+  <!-- === INTERNAL DOORS === -->
+  <!-- Kitchen Doorway (Opening only) -->
+  <a-entity position="4 2.1 -1">
+    <a-box position="0 0 0" width="0.3" height="4.3" depth="2.1" color="#8b7355" material="wireframe: true"></a-box>
+  </a-entity>
+
+  <!-- Bedroom Door -->
+  <a-entity position="-2 2.1 -7" rotation="0 90 0">
+    <a-box position="-1 0 0" width="2" height="4.2" depth="0.15" color="#5c3d1e"></a-box>
+    <!-- Door handle -->
+    <a-cylinder position="-1.8 0 0.1" radius="0.05" height="0.2" rotation="90 0 0" color="#d4af37"></a-cylinder>
+  </a-entity>
+  <!-- Solid Door Frame -->
+  <a-entity position="-3 2.1 -7">
+    <a-box position="-1.05 0 0" width="0.1" height="4.3" depth="0.3" color="#8b7355"></a-box>
+    <a-box position="1.05 0 0" width="0.1" height="4.3" depth="0.3" color="#8b7355"></a-box>
+    <a-box position="0 2.15 0" width="2.2" height="0.1" depth="0.3" color="#8b7355"></a-box>
+  </a-entity>
+
+  <!-- === UPPER FLOOR === -->
+  <!-- Upper Floor Slab -->
+  <a-box position="0 6.3 -3" width="24" height="0.2" depth="20" color="#d9cfc0"></a-box>
+  <!-- Upper Walls -->
+  <a-box position="0 9.2 7" width="24" height="6" depth="0.4" color="#f5efe6"></a-box>
+  <a-box position="0 9.2 -13" width="24" height="6" depth="0.4" color="#f5efe6"></a-box>
+  <a-box position="-12 9.2 -3" width="0.4" height="6" depth="20" color="#ede8df"></a-box>
+  <a-box position="12 9.2 -3" width="0.4" height="6" depth="20" color="#ede8df"></a-box>
+  <!-- Upper Ceiling -->
+  <a-box position="0 12.2 -3" width="24" height="0.2" depth="20" color="#f0ece4"></a-box>
+
+  <!-- Flat Roof -->
+  <a-box position="0 12.6 -3" width="25" height="0.5" depth="21" color="#c8b8a8"></a-box>
+  <!-- Roof parapet -->
+  <a-box position="0 12.9 7.2" width="25" height="0.8" depth="0.3" color="#c8b8a8"></a-box>
+  <a-box position="0 12.9 -13.2" width="25" height="0.8" depth="0.3" color="#c8b8a8"></a-box>
+  <a-box position="-12.6 12.9 -3" width="0.3" height="0.8" depth="21.6" color="#c8b8a8"></a-box>
+  <a-box position="12.6 12.9 -3" width="0.3" height="0.8" depth="21.6" color="#c8b8a8"></a-box>
+
+  <!-- === COLUMNS === -->
+  <a-cylinder position="-8 3 6.8" radius="0.3" height="6" color="#e0d6c8" segments-radial="8"></a-cylinder>
+  <a-cylinder position="-4 3 6.8" radius="0.3" height="6" color="#e0d6c8" segments-radial="8"></a-cylinder>
+  <a-cylinder position="0 3 6.8" radius="0.3" height="6" color="#e0d6c8" segments-radial="8"></a-cylinder>
+  <a-cylinder position="4 3 6.8" radius="0.3" height="6" color="#e0d6c8" segments-radial="8"></a-cylinder>
+  <a-cylinder position="8 3 6.8" radius="0.3" height="6" color="#e0d6c8" segments-radial="8"></a-cylinder>
+
+  <!-- Column tops (capitals) -->
+  <a-box position="-8 6.2 6.8" width="0.8" height="0.3" depth="0.8" color="#d4c8b4"></a-box>
+  <a-box position="-4 6.2 6.8" width="0.8" height="0.3" depth="0.8" color="#d4c8b4"></a-box>
+  <a-box position="0 6.2 6.8" width="0.8" height="0.3" depth="0.8" color="#d4c8b4"></a-box>
+  <a-box position="4 6.2 6.8" width="0.8" height="0.3" depth="0.8" color="#d4c8b4"></a-box>
+  <a-box position="8 6.2 6.8" width="0.8" height="0.3" depth="0.8" color="#d4c8b4"></a-box>
+
+  <!-- === WINDOWS (ground) === -->
+  <!-- Living Room Windows -->
+  <a-box position="-7 3.5 7.1" width="2.5" height="2" depth="0.1" color="#b8d4e8" material="opacity:0.5; transparent:true;"></a-box>
+  <a-box position="-7 3.5 7.22" width="2.6" height="2.1" depth="0.05" color="#8b7d5e"></a-box>
+
+  <a-box position="-3 3.5 7.1" width="2.5" height="2" depth="0.1" color="#b8d4e8" material="opacity:0.5; transparent:true;"></a-box>
+  <a-box position="-3 3.5 7.22" width="2.6" height="2.1" depth="0.05" color="#8b7d5e"></a-box>
+
+  <!-- Bedroom windows (back) -->
+  <a-box position="-7 3.5 -13.05" width="2.5" height="2" depth="0.1" color="#b8d4e8" material="opacity:0.5; transparent:true;"></a-box>
+  <a-box position="-3 3.5 -13.05" width="2.5" height="2" depth="0.1" color="#b8d4e8" material="opacity:0.5; transparent:true;"></a-box>
+
+  <!-- Kitchen windows (side) -->
+  <a-box position="12.05 3.5 -2" width="0.1" height="2" depth="2.5" color="#b8d4e8" material="opacity:0.5; transparent:true;"></a-box>
+
+  <!-- === FRONT DOOR === -->
+  <a-box position="0 2.5 7.15" width="2" height="4" depth="0.15" color="#5c3d1e"></a-box>
+  <!-- Door frame -->
+  <a-box position="0 2.5 7.22" width="2.3" height="4.3" depth="0.1" color="#8b7355"></a-box>
+  <!-- Door handle -->
+  <a-cylinder position="0.6 2.5 7.28" radius="0.06" height="0.3" rotation="0 0 90" color="#d4af37" segments-radial="8"></a-cylinder>
+
+  <!-- Entrance steps -->
+  <a-box position="0 0.3 8.5" width="5" height="0.3" depth="1.5" color="#c8b88a"></a-box>
+  <a-box position="0 0.15 9.5" width="5.5" height="0.15" depth="1.5" color="#c8b88a"></a-box>
+
+  <!-- ==================== LIVING ROOM ==================== -->
+  <!-- Ceiling light fixture -->
+  <a-cylinder position="-4 5.8 2" radius="0.4" height="0.15" color="#d4af37" segments-radial="12"></a-cylinder>
+  <a-cylinder position="-4 5.5 2" radius="0.08" height="0.5" color="#999"></a-cylinder>
+  <a-light type="point" position="-4 5.4 2" intensity="1.2" color="#fff8e0" distance="10"></a-light>
+
+  <!-- Ceiling fan -->
+  <a-cylinder position="-8 5.8 4" radius="0.2" height="0.15" color="#8b7355" segments-radial="8" id="fan-hub"></a-cylinder>
+  <a-entity position="-8 5.7 4" fan-spin>
+    <a-box position="1.2 0 0" width="2.4" height="0.08" depth="0.6" color="#b8965a"></a-box>
+    <a-box position="-1.2 0 0" width="2.4" height="0.08" depth="0.6" color="#b8965a"></a-box>
+    <a-box position="0 0 1.2" width="0.6" height="0.08" depth="2.4" color="#b8965a"></a-box>
+    <a-box position="0 0 -1.2" width="0.6" height="0.08" depth="2.4" color="#b8965a"></a-box>
+  </a-entity>
+  <a-light type="point" position="-8 5.4 4" intensity="0.8" color="#fff5d0" distance="8"></a-light>
+
+  <!-- Sofa (L-shape) -->
+  <a-box position="-8 0.7 0" width="5" height="0.8" depth="1.8" color="#8B4513" shadow></a-box>
+  <a-box position="-10 1.3 0" width="1" height="1" depth="1.8" color="#7a3c10" shadow></a-box>
+  <a-box position="-8 1.3 -0.9" width="5" height="1" depth="0.2" color="#7a3c10" shadow></a-box>
+  <!-- Sofa cushions -->
+  <a-box position="-7 1.3 0.1" width="1.4" height="0.35" depth="1.5" color="#c0773a"></a-box>
+  <a-box position="-8.5 1.3 0.1" width="1.4" height="0.35" depth="1.5" color="#c0773a"></a-box>
+  <a-box position="-6 1.3 -0.5" width="1" height="1" depth="0.2" color="#7a3c10"></a-box>
+
+  <!-- Coffee Table -->
+  <a-box position="-6 0.4 2" width="2.5" height="0.08" depth="1.2" color="#8B7355" shadow></a-box>
+  <a-cylinder position="-6 0.2 2" radius="0.06" height="0.4" color="#7a6344" segments-radial="6"></a-cylinder>
+  <!-- Vase on table -->
+  <a-cylinder position="-6 0.6 2" radius="0.12" height="0.35" color="#d4760a" segments-radial="10"></a-cylinder>
+  <!-- Flowers -->
+  <a-sphere position="-5.95 0.88 2" radius="0.1" color="#e84393"></a-sphere>
+  <a-sphere position="-6.1 0.85 2.05" radius="0.08" color="#ff6b6b"></a-sphere>
+  <a-sphere position="-5.85 0.86 1.95" radius="0.09" color="#ff9f45"></a-sphere>
+
+  <!-- TV Cabinet -->
+  <a-box position="-4.5 0.5 -0.5" width="4" height="1" depth="0.6" color="#5c3d1e" shadow></a-box>
+  <!-- TV Screen -->
+  <a-box position="-4.5 2 -0.7" width="3.5" height="2" depth="0.15" color="#111" shadow></a-box>
+  <a-box position="-4.5 2 -0.6" width="3.2" height="1.7" depth="0.05" color="#001122" material="emissive:#002233; emissiveIntensity:0.3;"></a-box>
+  <!-- TV frame -->
+  <a-box position="-4.5 2 -0.72" width="3.7" height="2.2" depth="0.1" color="#2a2a2a"></a-box>
+  <!-- TV stand leg -->
+  <a-cylinder position="-4.5 1.05 -0.65" radius="0.04" height="0.1" color="#333" segments-radial="6"></a-cylinder>
+
+  <!-- Bookshelf -->
+  <a-box position="-11 3 -1" width="1.8" height="6" depth="0.5" color="#5c3d1e" shadow></a-box>
+  <!-- Shelves -->
+  <a-box position="-11 1.5 -1" width="1.8" height="0.06" depth="0.5" color="#4a3018"></a-box>
+  <a-box position="-11 2.8 -1" width="1.8" height="0.06" depth="0.5" color="#4a3018"></a-box>
+  <a-box position="-11 4.1 -1" width="1.8" height="0.06" depth="0.5" color="#4a3018"></a-box>
+  <a-box position="-11 5.4 -1" width="1.8" height="0.06" depth="0.5" color="#4a3018"></a-box>
+  <!-- Books -->
+  <a-box position="-11.5 2.1 -1" width="0.2" height="0.5" depth="0.4" color="#c0392b"></a-box>
+  <a-box position="-11.25 2.1 -1" width="0.2" height="0.5" depth="0.4" color="#2980b9"></a-box>
+  <a-box position="-11.0 2.1 -1" width="0.2" height="0.5" depth="0.4" color="#27ae60"></a-box>
+  <a-box position="-10.75 2.1 -1" width="0.2" height="0.5" depth="0.4" color="#8e44ad"></a-box>
+  <a-box position="-10.5 2.1 -1" width="0.2" height="0.5" depth="0.4" color="#e67e22"></a-box>
+  <a-box position="-11.4 3.4 -1" width="0.2" height="0.5" depth="0.4" color="#1abc9c"></a-box>
+  <a-box position="-11.15 3.4 -1" width="0.2" height="0.5" depth="0.4" color="#e74c3c"></a-box>
+  <a-box position="-10.9 3.4 -1" width="0.2" height="0.5" depth="0.4" color="#f39c12"></a-box>
+
+  <!-- Rug -->
+  <a-box position="-7 0.23 1.5" width="5" height="0.02" depth="3.5" color="#8B0000"></a-box>
+  <!-- Rug pattern -->
+  <a-box position="-7 0.24 1.5" width="4.5" height="0.01" depth="3" color="#5a0000"></a-box>
+
+  <!-- Floor lamp -->
+  <a-cylinder position="-5 0 -0.5" radius="0.06" height="1.6" color="#b8860b" segments-radial="6"></a-cylinder>
+  <a-cone position="-5 1.9 -0.5" radius-bottom="0.3" radius-top="0.05" height="0.5" color="#f5deb3"></a-cone>
+  <a-light type="point" position="-5 1.7 -0.5" intensity="0.9" color="#ffe8a0" distance="6"></a-light>
+
+  <!-- Wall art / Painting -->
+  <a-box position="-9 4 7.02" width="1.8" height="1.2" depth="0.08" color="#1a1a1a"></a-box>
+  <a-box position="-9 4 7.08" width="1.6" height="1.0" depth="0.05" color="#2a4a7a"></a-box>
+  <a-sphere position="-9 4.1 7.09" radius="0.3" color="#d4af37" material="opacity:0.7; transparent:true;"></a-sphere>
+  <!-- Another painting -->
+  <a-box position="-5 4 7.02" width="1.5" height="1.8" depth="0.08" color="#1a1a1a"></a-box>
+  <a-box position="-5 4 7.08" width="1.3" height="1.6" depth="0.05" color="#3a7a2a"></a-box>
+
+  <!-- Indoor plant - living room corner -->
+  <a-cylinder position="-11 0.5 5" radius="0.25" height="0.6" color="#8B4513" segments-radial="8"></a-cylinder>
+  <a-sphere position="-11 1.5 5" radius="0.8" color="#228B22" material="wireframe: false"></a-sphere>
+  <a-sphere position="-10.6 1.8 5.3" radius="0.5" color="#2d9e2d"></a-sphere>
+  <a-sphere position="-11.3 1.9 4.7" radius="0.45" color="#1e7a1e"></a-sphere>
+
+  <!-- ==================== BEDROOM ==================== -->
+  <!-- Bedroom light -->
+  <a-sphere position="-7 5.6 -10" radius="0.2" color="#fffacd" material="emissive:#fffacd; emissiveIntensity:0.8;"></a-sphere>
+  <a-light type="point" position="-7 5.4 -10" intensity="1.0" color="#ffe8c0" distance="9"></a-light>
+
+  <!-- Bed frame -->
+  <a-box position="-7 0.3 -11" width="5" height="0.5" depth="7" color="#4a2c0a" shadow></a-box>
+  <!-- Mattress -->
+  <a-box position="-7 0.75 -11" width="4.6" height="0.4" depth="6.5" color="#f0ebe4" shadow></a-box>
+  <!-- Pillows -->
+  <a-box position="-8.2 1.05 -8.5" width="1.5" height="0.3" depth="1" color="#e8e0f0"></a-box>
+  <a-box position="-5.8 1.05 -8.5" width="1.5" height="0.3" depth="1" color="#f0e8e8"></a-box>
+  <!-- Bedsheet -->
+  <a-box position="-7 0.97 -11.5" width="4.5" height="0.07" depth="5" color="#b8c8d8"></a-box>
+  <!-- Headboard -->
+  <a-box position="-7 1.8 -7.9" width="5" height="2.5" depth="0.2" color="#4a2c0a" shadow></a-box>
+  <a-box position="-7 1.8 -7.82" width="4.6" height="2.1" depth="0.05" color="#6a4420"></a-box>
+
+  <!-- Bedside tables -->
+  <a-box position="-10.5 0.5 -9.5" width="1.2" height="0.8" depth="1.2" color="#6a4420" shadow></a-box>
+  <a-cylinder position="-10.5 1.1 -9.5" radius="0.3" height="0.3" color="#fffacd" segments-radial="8"></a-cylinder>
+  <a-light type="point" position="-10.5 1.4 -9.5" intensity="0.6" color="#ffe0a0" distance="4"></a-light>
+  <a-box position="-3.5 0.5 -9.5" width="1.2" height="0.8" depth="1.2" color="#6a4420" shadow></a-box>
+  <a-cylinder position="-3.5 1.1 -9.5" radius="0.3" height="0.3" color="#fffacd" segments-radial="8"></a-cylinder>
+  <a-light type="point" position="-3.5 1.4 -9.5" intensity="0.6" color="#ffe0a0" distance="4"></a-light>
+
+  <!-- Wardrobe -->
+  <a-box position="-10.5 3 -12.8" width="2" height="6" depth="0.8" color="#5c3d1e" shadow></a-box>
+  <a-box position="-10.5 3 -12.45" width="1.9" height="5.8" depth="0.05" color="#4a3018" material="opacity:0.9;"></a-box>
+  <!-- Wardrobe handles -->
+  <a-cylinder position="-10.0 3 -12.38" radius="0.04" height="0.5" rotation="0 0 90" color="#d4af37" segments-radial="6"></a-cylinder>
+  <a-cylinder position="-11.0 3 -12.38" radius="0.04" height="0.5" rotation="0 0 90" color="#d4af37" segments-radial="6"></a-cylinder>
+
+  <!-- Vanity mirror -->
+  <a-box position="-3 3 -12.8" width="2.5" height="3" depth="0.1" color="#aaccdd" material="opacity:0.6; transparent:true;"></a-box>
+  <a-box position="-3 3 -12.85" width="2.7" height="3.2" depth="0.08" color="#2a2a2a"></a-box>
+  <!-- Vanity table -->
+  <a-box position="-3 0.5 -12.5" width="2.5" height="0.8" depth="0.8" color="#5c3d1e" shadow></a-box>
+  <!-- Perfume bottles -->
+  <a-cylinder position="-2.5 1.05 -12.5" radius="0.07" height="0.25" color="#d4af37" segments-radial="8"></a-cylinder>
+  <a-cylinder position="-3 1.05 -12.5" radius="0.08" height="0.3" color="#a855f7" segments-radial="8" material="opacity:0.8; transparent:true;"></a-cylinder>
+  <a-cylinder position="-3.5 1.05 -12.5" radius="0.06" height="0.22" color="#60a5fa" segments-radial="8" material="opacity:0.8; transparent:true;"></a-cylinder>
+
+  <!-- Bedroom rug -->
+  <a-box position="-7 0.23 -11" width="4" height="0.02" depth="5" color="#7c3aed"></a-box>
+
+  <!-- Wall art bedroom -->
+  <a-box position="-7 4.5 -12.92" width="3" height="2" depth="0.1" color="#1a1a1a"></a-box>
+  <a-box position="-7 4.5 -12.86" width="2.7" height="1.7" depth="0.05" color="#d97706"></a-box>
+
+  <!-- ==================== KITCHEN ==================== -->
+  <!-- Kitchen light -->
+  <a-cylinder position="8 5.8 -1" radius="0.35" height="0.15" color="#e0d0a0" segments-radial="10"></a-cylinder>
+  <a-light type="point" position="8 5.4 -1" intensity="1.3" color="#fff5e0" distance="9"></a-light>
+
+  <!-- Kitchen Counter (L-shape) -->
+  <!-- Main counter -->
+  <a-box position="10 1 -3" width="3.5" height="2" depth="8" color="#555" shadow></a-box>
+  <a-box position="10 2.1 -3" width="3.6" height="0.2" depth="8.2" color="#aaa"></a-box>
+  <!-- Side counter -->
+  <a-box position="7 1 -7" width="6" height="2" depth="1.5" color="#555" shadow></a-box>
+  <a-box position="7 2.1 -7" width="6.2" height="0.2" depth="1.7" color="#aaa"></a-box>
+
+  <!-- Upper kitchen cabinets -->
+  <a-box position="10 4.5 -3" width="3.5" height="2.5" depth="0.7" color="#666" shadow></a-box>
+  <a-box position="10 4.5 -7" width="3.5" height="2.5" depth="0.7" color="#666"></a-box>
+  <!-- Cabinet handles -->
+  <a-cylinder position="9 4.5 -2.65" radius="0.03" height="0.5" rotation="0 0 90" color="#ccc" segments-radial="6"></a-cylinder>
+  <a-cylinder position="11 4.5 -2.65" radius="0.03" height="0.5" rotation="0 0 90" color="#ccc" segments-radial="6"></a-cylinder>
+
+  <!-- Refrigerator -->
+  <a-box position="11.6 2.5 0" width="1.2" height="4.5" depth="1.2" color="#e0e0e0" shadow></a-box>
+  <a-box position="11.6 2.5 -0.58" width="1.1" height="4.3" depth="0.05" color="#ddd"></a-box>
+  <a-cylinder position="11.2 2.5 -0.55" radius="0.04" height="0.4" rotation="0 0 90" color="#aaa" segments-radial="6"></a-cylinder>
+
+  <!-- Stove -->
+  <a-box position="10 2.18 -6" width="1.8" height="0.05" depth="1.8" color="#333"></a-box>
+  <!-- Burners -->
+  <a-torus position="9.5 2.25 -5.5" radius="0.25" tube="0.05" color="#555" segments-radial="16" segments-tubular="8"></a-torus>
+  <a-torus position="10.5 2.25 -5.5" radius="0.25" tube="0.05" color="#555" segments-radial="16" segments-tubular="8"></a-torus>
+  <a-torus position="9.5 2.25 -6.5" radius="0.25" tube="0.05" color="#555" segments-radial="16" segments-tubular="8"></a-torus>
+  <a-torus position="10.5 2.25 -6.5" radius="0.25" tube="0.05" color="#555" segments-radial="16" segments-tubular="8"></a-torus>
+
+  <!-- Microwave -->
+  <a-box position="10 4 0.5" width="1.5" height="0.9" depth="0.9" color="#888"></a-box>
+  <a-box position="10 4 0.07" width="1.3" height="0.7" depth="0.05" color="#333" material="opacity:0.7; transparent:true;"></a-box>
+
+  <!-- Sink -->
+  <a-box position="8 2.15 -2" width="1.2" height="0.15" depth="0.9" color="#aaa"></a-box>
+  <a-box position="8 1.95 -2" width="1.0" height="0.2" depth="0.8" color="#999"></a-box>
+  <!-- Faucet -->
+  <a-cylinder position="8 2.4 -2.3" radius="0.04" height="0.4" color="#bbb" segments-radial="6"></a-cylinder>
+  <a-torus position="8 2.6 -2.1" radius="0.2" tube="0.03" rotation="90 0 0" color="#bbb" segments-radial="12" segments-tubular="8"></a-torus>
+
+  <!-- Kitchen Dining table -->
+  <a-cylinder position="6 1.75 1" radius="1.3" height="0.1" color="#6b4226" segments-radial="12"></a-cylinder>
+  <a-cylinder position="6 1.0 1" radius="0.08" height="1.5" color="#5a3820" segments-radial="8"></a-cylinder>
+  <!-- Chairs around table -->
+  <a-box position="6 0.9 2.7" width="0.8" height="0.08" depth="0.8" color="#5c3d1e"></a-box>
+  <a-box position="6 0.45 2.7" width="0.7" height="0.9" depth="0.08" color="#4a3018"></a-box>
+  <a-box position="6 0.9 -0.7" width="0.8" height="0.08" depth="0.8" color="#5c3d1e"></a-box>
+  <a-box position="6 0.45 -0.7" width="0.7" height="0.9" depth="0.08" color="#4a3018"></a-box>
+  <a-box position="4.3 0.9 1" width="0.8" height="0.08" depth="0.8" color="#5c3d1e"></a-box>
+  <a-box position="4.3 0.45 1" width="0.08" height="0.9" depth="0.7" color="#4a3018"></a-box>
+  <a-box position="7.7 0.9 1" width="0.8" height="0.08" depth="0.8" color="#5c3d1e"></a-box>
+  <a-box position="7.7 0.45 1" width="0.08" height="0.9" depth="0.7" color="#4a3018"></a-box>
+
+  <!-- Table decor - fruit bowl -->
+  <a-torus position="6 1.58 1" radius="0.25" tube="0.08" color="#d97706" segments-radial="12" segments-tubular="8"></a-torus>
+  <a-sphere position="5.9 1.74 0.95" radius="0.1" color="#ef4444"></a-sphere>
+  <a-sphere position="6.1 1.74 1.05" radius="0.08" color="#22c55e"></a-sphere>
+  <a-sphere position="6 1.72 0.8" radius="0.09" color="#f97316"></a-sphere>
+
+  <!-- ==================== SWIMMING POOL ==================== -->
+  <!-- Pool surround deck -->
+  <a-box position="0 0.05 22" width="18" height="0.3" depth="14" color="#d4c4a8" shadow></a-box>
+  <!-- Pool walls -->
+  <a-box position="0 -0.5 22" width="14" height="1.3" depth="10" color="#6ab4d0"></a-box>
+  <!-- Pool floor with mosaic tile effect -->
+  <a-box position="0 -1.05 22" width="13.5" height="0.1" depth="9.5" color="#0077be" shadow></a-box>
+  <a-plane position="0 -1.0 22" rotation="-90 0 0" width="13.5" height="9.5" 
+    material="src: #mosaic; repeat: 14 10; opacity: 0.9;"></a-plane>
+
+  <!-- Pool inner water surface (animated) -->
+  <a-entity id="pool-water" position="0 -0.1 22">
+    <a-box water-wave="speed:0.8; amplitude:0.06" position="0 0 0" width="13.4" height="0.1" depth="9.4"
+      color="#4db8ff" material="opacity:0.5; transparent:true; side:double;"></a-box>
+  </a-entity>
+
+  <!-- Pool Ladder -->
+  <a-entity position="6.5 0.5 18">
+    <a-torus radius="0.3" tube="0.03" arc="180" rotation="0 90 0" color="#ddd"></a-torus>
+    <a-cylinder position="0 -0.8 0.3" radius="0.03" height="1.6" color="#ddd"></a-cylinder>
+    <a-cylinder position="0 -0.8 -0.3" radius="0.03" height="1.6" color="#ddd"></a-cylinder>
+    <a-box position="0 -0.4 0" width="0.02" height="0.05" depth="0.55" color="#eee"></a-box>
+    <a-box position="0 -0.8 0" width="0.02" height="0.05" depth="0.55" color="#eee"></a-box>
+    <a-box position="0 -1.2 0" width="0.02" height="0.05" depth="0.55" color="#eee"></a-box>
+  </a-entity>
+
+  <!-- Underwater LED Strips (Inner perimeter) -->
+  <a-box position="0 -0.5 17.35" width="13.4" height="0.05" depth="0.05" color="#00ffff" material="emissive:#00ffff; emissiveIntensity:0.5;"></a-box>
+  <a-box position="0 -0.5 26.65" width="13.4" height="0.05" depth="0.05" color="#00ffff" material="emissive:#00ffff; emissiveIntensity:0.5;"></a-box>
+
+  <!-- Pool Life Ring -->
+  <a-entity position="0 0.25 15.5" rotation="90 0 0">
+    <a-torus radius="0.4" tube="0.12" color="#ff4500" segments-radial="16" segments-tubular="12"></a-torus>
+    <a-torus radius="0.4" tube="0.02" color="#fff" segments-radial="16" segments-tubular="6"></a-torus>
+  </a-entity>
+
+  <!-- Pool ripple rings (decorative animation) -->
+  <a-torus id="ripple1" position="2 -0.05 22" radius="1" tube="0.05" color="#7dd3fc" segments-radial="20" segments-tubular="8"
+    material="opacity:0.5; transparent:true;"
+    animation="property: scale; to: 3 0.5 3; dur: 2000; loop: true; easing: easeOutQuad; startEvents: tick">
+  </a-torus>
+  <a-torus id="ripple2" position="-2 -0.05 22" radius="0.7" tube="0.04" color="#93c5fd" segments-radial="20" segments-tubular="8"
+    material="opacity:0.4; transparent:true;"
+    animation="property: scale; to: 2.5 0.5 2.5; dur: 2500; loop: true; delay: 800; easing: easeOutQuad;">
+  </a-torus>
+
+  <!-- Pool lighting strips -->
+  <a-box position="6.4 -0.5 22" width="0.1" height="1.2" depth="8" color="#60a5fa" material="emissive:#1d4ed8; emissiveIntensity:0.5;"></a-box>
+  <a-box position="-6.4 -0.5 22" width="0.1" height="1.2" depth="8" color="#60a5fa" material="emissive:#1d4ed8; emissiveIntensity:0.5;"></a-box>
+  <a-light type="point" position="0 -0.3 22" intensity="0.8" color="#60a5fa" distance="10"></a-light>
+
+  <!-- Pool steps -->
+  <a-box position="5.5 -0.2 22" width="1" height="0.3" depth="3" color="#b0ccd8"></a-box>
+  <a-box position="5.5 -0.55 22" width="1.2" height="0.3" depth="3.2" color="#a0bcc8"></a-box>
+
+  <!-- Pool fence -->
+  <a-box position="0 1.2 28.2" width="18" height="2" depth="0.08" color="#ccc" material="opacity:0.4; transparent:true;"></a-box>
+  <a-box position="9.2 1.2 22" width="0.08" height="2" depth="14" color="#ccc" material="opacity:0.4; transparent:true;"></a-box>
+  <a-box position="-9.2 1.2 22" width="0.08" height="2" depth="14" color="#ccc" material="opacity:0.4; transparent:true;"></a-box>
+  <!-- Fence posts -->
+  <a-cylinder position="-9 0 16" radius="0.06" height="2.4" color="#aaa" segments-radial="6"></a-cylinder>
+  <a-cylinder position="-3 0 16" radius="0.06" height="2.4" color="#aaa" segments-radial="6"></a-cylinder>
+  <a-cylinder position="3 0 16" radius="0.06" height="2.4" color="#aaa" segments-radial="6"></a-cylinder>
+  <a-cylinder position="9 0 16" radius="0.06" height="2.4" color="#aaa" segments-radial="6"></a-cylinder>
+
+  <!-- Sun loungers by pool -->
+  <!-- Lounger 1 -->
+  <a-box position="-7 0.35 18" width="2.5" height="0.2" depth="0.9" color="#f5deb3" rotation="0 15 0"></a-box>
+  <a-box position="-8 0.5 18" width="0.8" height="0.4" depth="0.8" color="#e8cfa0" rotation="0 15 15"></a-box>
+  <!-- Lounger 2 -->
+  <a-box position="7 0.35 18" width="2.5" height="0.2" depth="0.9" color="#f5deb3" rotation="0 -15 0"></a-box>
+  <a-box position="8 0.5 18" width="0.8" height="0.4" depth="0.8" color="#e8cfa0" rotation="0 -15 -15"></a-box>
+
+  <!-- Beach umbrella by pool -->
+  <a-cylinder position="-7 1.5 19" radius="0.05" height="3" color="#8B7355" segments-radial="6"></a-cylinder>
+  <a-cone position="-7 3.2 19" radius-bottom="1.8" radius-top="0.1" height="0.7" color="#e74c3c" rotation="0 0 180"></a-cone>
+  <a-cone position="-7 2.9 19" radius-bottom="1.5" radius-top="0.1" height="0.3" color="#c0392b" rotation="0 0 180"></a-cone>
+
+  <a-cylinder position="7 1.5 19" radius="0.05" height="3" color="#8B7355" segments-radial="6"></a-cylinder>
+  <a-cone position="7 3.2 19" radius-bottom="1.8" radius-top="0.1" height="0.7" color="#f39c12" rotation="0 0 180"></a-cone>
+  <a-cone position="7 2.9 19" radius-bottom="1.5" radius-top="0.1" height="0.3" color="#e67e22" rotation="0 0 180"></a-cone>
+
+  <!-- ==================== TREES & LANDSCAPE ==================== -->
+  <!-- Palm tree 1 -->
+  <a-entity position="-15 0 5">
+    <a-cylinder radius="0.2" height="6" color="#8B7355" segments-radial="8"></a-cylinder>
+    <a-cone position="0 4 0" radius-bottom="3" radius-top="0.1" height="1.5" color="#228B22"></a-cone>
+    <a-cone position="0 3.5 0" radius-bottom="2.5" radius-top="0.1" height="1.2" color="#2d9e2d" rotation="0 45 0"></a-cone>
+    <a-cone position="0 3 0" radius-bottom="2" radius-top="0.1" height="1.0" color="#1e7a1e" rotation="0 90 0"></a-cone>
+    <!-- Coconuts -->
+    <a-sphere position="0.5 3.2 0.3" radius="0.2" color="#8B6914"></a-sphere>
+    <a-sphere position="-0.3 3.1 0.4" radius="0.18" color="#7a5e12"></a-sphere>
+  </a-entity>
+
+  <!-- Palm tree 2 -->
+  <a-entity position="16 0 5">
+    <a-cylinder radius="0.2" height="7" color="#8B7355" segments-radial="8" rotation="0 0 5"></a-cylinder>
+    <a-cone position="0.5 5.2 0" radius-bottom="3.2" radius-top="0.1" height="1.5" color="#228B22"></a-cone>
+    <a-cone position="0.5 4.7 0" radius-bottom="2.7" radius-top="0.1" height="1.3" color="#2d9e2d" rotation="0 60 0"></a-cone>
+    <a-cone position="0.5 4.2 0" radius-bottom="2.2" radius-top="0.1" height="1.0" color="#1e7a1e" rotation="0 120 0"></a-cone>
+  </a-entity>
+
+  <!-- Tree cluster 3 -->
+  <a-entity position="-16 0 -10">
+    <a-cylinder radius="0.25" height="5" color="#5c3d1e" segments-radial="8"></a-cylinder>
+    <a-sphere position="0 4.5 0" radius="2" color="#2d8b1e"></a-sphere>
+    <a-sphere position="0.8 4 0.5" radius="1.5" color="#228B22"></a-sphere>
+    <a-sphere position="-0.7 4 -0.5" radius="1.4" color="#1e7a1e"></a-sphere>
+  </a-entity>
+
+  <!-- Tree cluster 4 -->
+  <a-entity position="17 0 20">
+    <a-cylinder radius="0.22" height="5.5" color="#5c3d1e" segments-radial="8"></a-cylinder>
+    <a-sphere position="0 5 0" radius="2.2" color="#228B22"></a-sphere>
+    <a-sphere position="0.9 4.5 0.6" radius="1.6" color="#2d9e2d"></a-sphere>
+    <a-sphere position="-0.8 4.3 -0.4" radius="1.5" color="#1e7a1e"></a-sphere>
+  </a-entity>
+
+  <!-- Hedge row (decorative bushes) -->
+  <a-entity position="-17 0 -5">
+    <a-box position="0 0.5 0" width="2" height="1" depth="1" color="#1e7a1e"></a-box>
+    <a-box position="2 0.5 0" width="2" height="1.2" depth="1" color="#228B22"></a-box>
+    <a-box position="4 0.5 0" width="2" height="0.9" depth="1" color="#1e7a1e"></a-box>
+    <a-box position="6 0.5 0" width="2" height="1.1" depth="1" color="#2d9e2d"></a-box>
+    <a-box position="8 0.5 0" width="2" height="1.0" depth="1" color="#1e7a1e"></a-box>
+  </a-entity>
+
+  <!-- Garden flower beds -->
+  <a-entity position="-5 0 10">
+    <a-box position="0 0.1 0" width="3" height="0.2" depth="1.5" color="#8B4513"></a-box>
+    <a-sphere position="-0.8 0.5 0" radius="0.3" color="#e84393"></a-sphere>
+    <a-sphere position="0 0.5 0" radius="0.3" color="#ff6b6b"></a-sphere>
+    <a-sphere position="0.8 0.5 0" radius="0.3" color="#ffd700"></a-sphere>
+    <a-sphere position="-0.4 0.5 0.4" radius="0.25" color="#a855f7"></a-sphere>
+    <a-sphere position="0.4 0.5 0.4" radius="0.25" color="#60a5fa"></a-sphere>
+    <!-- Stems -->
+    <a-cylinder position="-0.8 0.2 0" radius="0.03" height="0.4" color="#228B22" segments-radial="4"></a-cylinder>
+    <a-cylinder position="0 0.2 0" radius="0.03" height="0.4" color="#228B22" segments-radial="4"></a-cylinder>
+    <a-cylinder position="0.8 0.2 0" radius="0.03" height="0.4" color="#228B22" segments-radial="4"></a-cylinder>
+  </a-entity>
+
+  <!-- Flower bed 2 -->
+  <a-entity position="5 0 10">
+    <a-box position="0 0.1 0" width="3" height="0.2" depth="1.5" color="#8B4513"></a-box>
+    <a-sphere position="-0.8 0.5 0" radius="0.3" color="#f97316"></a-sphere>
+    <a-sphere position="0 0.5 0" radius="0.3" color="#06b6d4"></a-sphere>
+    <a-sphere position="0.8 0.5 0" radius="0.3" color="#ec4899"></a-sphere>
+    <a-cylinder position="-0.8 0.2 0" radius="0.03" height="0.4" color="#228B22" segments-radial="4"></a-cylinder>
+    <a-cylinder position="0 0.2 0" radius="0.03" height="0.4" color="#228B22" segments-radial="4"></a-cylinder>
+    <a-cylinder position="0.8 0.2 0" radius="0.03" height="0.4" color="#228B22" segments-radial="4"></a-cylinder>
+  </a-entity>
+
+  <!-- ==================== VEHICLES ==================== -->
+
+  <!-- CAR 1: Midnight-blue luxury sedan parked on the driveway -->
+  <a-entity position="22 0 3" rotation="0 -90 0">
+    <!-- Chassis / underbody -->
+    <a-box position="0 0.22 0" width="4.8" height="0.22" depth="2.1" color="#111118" shadow></a-box>
+    <!-- Car body lower -->
+    <a-box position="0 0.52 0" width="4.5" height="0.62" depth="2.0" color="#1a1a2e" shadow></a-box>
+    <!-- Car body upper (cabin) -->
+    <a-box position="0 1.02 0.05" width="2.9" height="0.78" depth="1.72" color="#16213e" shadow></a-box>
+    <!-- Windshield (angled) -->
+    <a-box position="0.88 1.12 0" width="1.1" height="0.58" depth="1.55" color="#7dd3fc" material="opacity:0.35; transparent:true;" rotation="0 0 -22"></a-box>
+    <!-- Rear window -->
+    <a-box position="-0.88 1.12 0" width="1.0" height="0.52" depth="1.45" color="#7dd3fc" material="opacity:0.35; transparent:true;" rotation="0 0 22"></a-box>
+    <!-- Side windows L -->
+    <a-box position="0.1 1.08 0.98" width="1.8" height="0.48" depth="0.06" color="#7dd3fc" material="opacity:0.3; transparent:true;"></a-box>
+    <!-- Side windows R -->
+    <a-box position="0.1 1.08 -0.98" width="1.8" height="0.48" depth="0.06" color="#7dd3fc" material="opacity:0.3; transparent:true;"></a-box>
+    <!-- Hood accent stripe -->
+    <a-box position="1.5 0.84 0" width="1.5" height="0.04" depth="0.4" color="#d4af37"></a-box>
+    <!-- Spoiler -->
+    <a-box position="-2.05 0.92 0" width="0.12" height="0.3" depth="1.8" color="#0d0d1a"></a-box>
+    <!-- Wheels -->
+    <a-cylinder position="1.55 0.38 -1.08" radius="0.36" height="0.26" rotation="0 0 90" color="#111" segments-radial="14"></a-cylinder>
+    <a-cylinder position="1.55 0.38 1.08" radius="0.36" height="0.26" rotation="0 0 90" color="#111" segments-radial="14"></a-cylinder>
+    <a-cylinder position="-1.55 0.38 -1.08" radius="0.36" height="0.26" rotation="0 0 90" color="#111" segments-radial="14"></a-cylinder>
+    <a-cylinder position="-1.55 0.38 1.08" radius="0.36" height="0.26" rotation="0 0 90" color="#111" segments-radial="14"></a-cylinder>
+    <!-- Gold rims -->
+    <a-cylinder position="1.55 0.38 -1.22" radius="0.22" height="0.06" rotation="0 0 90" color="#d4af37" segments-radial="12"></a-cylinder>
+    <a-cylinder position="1.55 0.38 1.22" radius="0.22" height="0.06" rotation="0 0 90" color="#d4af37" segments-radial="12"></a-cylinder>
+    <a-cylinder position="-1.55 0.38 -1.22" radius="0.22" height="0.06" rotation="0 0 90" color="#d4af37" segments-radial="12"></a-cylinder>
+    <a-cylinder position="-1.55 0.38 1.22" radius="0.22" height="0.06" rotation="0 0 90" color="#d4af37" segments-radial="12"></a-cylinder>
+    <!-- Rim spokes -->
+    <a-box position="1.55 0.55 -1.22" width="0.04" height="0.3" depth="0.04" color="#b8962a"></a-box>
+    <a-box position="1.55 0.21 -1.22" width="0.04" height="0.3" depth="0.04" color="#b8962a"></a-box>
+    <a-box position="1.55 0.38 -1.22" width="0.04" height="0.04" depth="0.3" color="#b8962a"></a-box>
+    <!-- Headlights (LED strip style) -->
+    <a-box position="2.26 0.62 -0.65" width="0.06" height="0.12" depth="0.5" color="#fffacd" material="emissive:#fff8c0; emissiveIntensity:0.8;"></a-box>
+    <a-box position="2.26 0.62 0.65" width="0.06" height="0.12" depth="0.5" color="#fffacd" material="emissive:#fff8c0; emissiveIntensity:0.8;"></a-box>
+    <!-- DRL strip -->
+    <a-box position="2.26 0.72 0" width="0.05" height="0.06" depth="1.6" color="#e0f0ff" material="emissive:#c0e8ff; emissiveIntensity:0.6;"></a-box>
+    <!-- Taillights -->
+    <a-box position="-2.26 0.65 -0.65" width="0.06" height="0.14" depth="0.5" color="#ff1111" material="emissive:#ff0000; emissiveIntensity:0.6;"></a-box>
+    <a-box position="-2.26 0.65 0.65" width="0.06" height="0.14" depth="0.5" color="#ff1111" material="emissive:#ff0000; emissiveIntensity:0.6;"></a-box>
+    <!-- Rear light bar -->
+    <a-box position="-2.26 0.72 0" width="0.05" height="0.06" depth="1.6" color="#ff4444" material="emissive:#cc0000; emissiveIntensity:0.4;"></a-box>
+    <!-- Side mirror L -->
+    <a-box position="0.4 0.92 1.07" width="0.35" height="0.18" depth="0.08" color="#10102a"></a-box>
+    <!-- Side mirror R -->
+    <a-box position="0.4 0.92 -1.07" width="0.35" height="0.18" depth="0.08" color="#10102a"></a-box>
+    <!-- Door seam lines -->
+    <a-box position="0.3 0.6 1.01" width="1.8" height="0.02" depth="0.02" color="#0a0a18"></a-box>
+    <a-box position="0.3 0.6 -1.01" width="1.8" height="0.02" depth="0.02" color="#0a0a18"></a-box>
+    <!-- Front bumper guard -->
+    <a-box position="2.28 0.32 0" width="0.1" height="0.22" depth="1.6" color="#222"></a-box>
+    <!-- Rear bumper -->
+    <a-box position="-2.28 0.32 0" width="0.1" height="0.22" depth="1.6" color="#222"></a-box>
+  </a-entity>
+
+  <!-- CAR 2: Crimson red sports car parked beside the garage -->
+  <a-entity position="20.5 0 -4" rotation="0 0 0">
+    <!-- Chassis -->
+    <a-box position="0 0.2 0" width="2.0" height="0.2" depth="4.5" color="#1a0000" shadow></a-box>
+    <!-- Body lower (wider, sporty) -->
+    <a-box position="0 0.48 0" width="2.05" height="0.55" depth="4.4" color="#cc1111" shadow></a-box>
+    <!-- Body upper (low cabin) -->
+    <a-box position="0 0.95 0.3" width="1.75" height="0.6" depth="2.6" color="#bb0f0f" shadow></a-box>
+    <!-- Sloping windshield -->
+    <a-box position="0 1.05 1.55" width="1.65" height="0.52" depth="0.9" color="#93c5fd" material="opacity:0.35; transparent:true;" rotation="-30 0 0"></a-box>
+    <!-- Rear window -->
+    <a-box position="0 1.02 -0.9" width="1.6" height="0.45" depth="0.8" color="#93c5fd" material="opacity:0.3; transparent:true;" rotation="30 0 0"></a-box>
+    <!-- Side windows L -->
+    <a-box position="-0.9 0.98 0.35" width="0.06" height="0.4" depth="1.8" color="#93c5fd" material="opacity:0.3; transparent:true;"></a-box>
+    <!-- Side windows R -->
+    <a-box position="0.9 0.98 0.35" width="0.06" height="0.4" depth="1.8" color="#93c5fd" material="opacity:0.3; transparent:true;"></a-box>
+    <!-- Hood scoop -->
+    <a-box position="0 0.76 1.6" width="0.5" height="0.1" depth="0.9" color="#aa0e0e"></a-box>
+    <a-box position="0 0.81 1.6" width="0.35" height="0.06" depth="0.7" color="#660808"></a-box>
+    <!-- Rear spoiler -->
+    <a-box position="0 1.32 -1.85" width="1.9" height="0.1" depth="0.3" color="#990000"></a-box>
+    <a-box position="-0.8 1.22 -1.85" width="0.1" height="0.3" depth="0.22" color="#880000"></a-box>
+    <a-box position="0.8 1.22 -1.85" width="0.1" height="0.3" depth="0.22" color="#880000"></a-box>
+    <!-- Wheels (wider sports tyres) -->
+    <a-cylinder position="-1.1 0.38 1.5" radius="0.37" height="0.3" rotation="90 0 0" color="#111" segments-radial="14"></a-cylinder>
+    <a-cylinder position="1.1 0.38 1.5" radius="0.37" height="0.3" rotation="90 0 0" color="#111" segments-radial="14"></a-cylinder>
+    <a-cylinder position="-1.1 0.38 -1.5" radius="0.37" height="0.3" rotation="90 0 0" color="#111" segments-radial="14"></a-cylinder>
+    <a-cylinder position="1.1 0.38 -1.5" radius="0.37" height="0.3" rotation="90 0 0" color="#111" segments-radial="14"></a-cylinder>
+    <!-- Silver rims -->
+    <a-cylinder position="-1.25 0.38 1.5" radius="0.23" height="0.07" rotation="90 0 0" color="#ccc" segments-radial="12"></a-cylinder>
+    <a-cylinder position="1.25 0.38 1.5" radius="0.23" height="0.07" rotation="90 0 0" color="#ccc" segments-radial="12"></a-cylinder>
+    <a-cylinder position="-1.25 0.38 -1.5" radius="0.23" height="0.07" rotation="90 0 0" color="#ccc" segments-radial="12"></a-cylinder>
+    <a-cylinder position="1.25 0.38 -1.5" radius="0.23" height="0.07" rotation="90 0 0" color="#ccc" segments-radial="12"></a-cylinder>
+    <!-- Headlights (quad style) -->
+    <a-box position="-0.6 0.6 2.26" width="0.35" height="0.18" depth="0.06" color="#fffacd" material="emissive:#ffe080; emissiveIntensity:0.8;"></a-box>
+    <a-box position="0.6 0.6 2.26" width="0.35" height="0.18" depth="0.06" color="#fffacd" material="emissive:#ffe080; emissiveIntensity:0.8;"></a-box>
+    <!-- DRL strip front -->
+    <a-box position="0 0.72 2.27" width="1.7" height="0.06" depth="0.05" color="#e0f8ff" material="emissive:#b0e8ff; emissiveIntensity:0.7;"></a-box>
+    <!-- Taillights -->
+    <a-box position="-0.6 0.62 -2.26" width="0.4" height="0.15" depth="0.06" color="#ff2222" material="emissive:#ff0000; emissiveIntensity:0.7;"></a-box>
+    <a-box position="0.6 0.62 -2.26" width="0.4" height="0.15" depth="0.06" color="#ff2222" material="emissive:#ff0000; emissiveIntensity:0.7;"></a-box>
+    <!-- Tail light bar -->
+    <a-box position="0 0.7 -2.27" width="1.7" height="0.05" depth="0.05" color="#ff4444" material="emissive:#dd0000; emissiveIntensity:0.5;"></a-box>
+    <!-- Exhaust pipes (twin) -->
+    <a-cylinder position="-0.4 0.28 -2.28" radius="0.07" height="0.08" rotation="90 0 0" color="#555" segments-radial="8"></a-cylinder>
+    <a-cylinder position="0.4 0.28 -2.28" radius="0.07" height="0.08" rotation="90 0 0" color="#555" segments-radial="8"></a-cylinder>
+    <!-- Side mirror L -->
+    <a-box position="-0.97 0.9 1.0" width="0.08" height="0.16" depth="0.32" color="#aa0e0e"></a-box>
+    <!-- Side mirror R -->
+    <a-box position="0.97 0.9 1.0" width="0.08" height="0.16" depth="0.32" color="#aa0e0e"></a-box>
+    <!-- Side vent / air intake -->
+    <a-box position="-1.04 0.55 1.0" width="0.06" height="0.18" depth="0.6" color="#880000"></a-box>
+    <a-box position="1.04 0.55 1.0" width="0.06" height="0.18" depth="0.6" color="#880000"></a-box>
+    <!-- Front bumper splitter -->
+    <a-box position="0 0.18 2.28" width="1.8" height="0.1" depth="0.12" color="#550000"></a-box>
+    <!-- Rear diffuser -->
+    <a-box position="0 0.18 -2.28" width="1.6" height="0.1" depth="0.15" color="#440000"></a-box>
+  </a-entity>
+
+  <!-- ==================== PETS ==================== -->
+  <!-- Cat near pool area (animated) -->
+  <a-entity position="-6 0 17" float-anim="speed:0.5; height:0.05">
+    <!-- Cat body -->
+    <a-sphere position="0 0.35 0" radius="0.3" color="#c0a060" scale-y="0.7"></a-sphere>
+    <!-- Cat head -->
+    <a-sphere position="0.35 0.6 0" radius="0.22" color="#c0a060"></a-sphere>
+    <!-- Cat ears -->
+    <a-cone position="0.27 0.82 0.1" radius-bottom="0.07" radius-top="0.01" height="0.15" color="#b89050"></a-cone>
+    <a-cone position="0.27 0.82 -0.1" radius-bottom="0.07" radius-top="0.01" height="0.15" color="#b89050"></a-cone>
+    <!-- Cat eyes -->
+    <a-sphere position="0.56 0.63 0.1" radius="0.04" color="#40c040"></a-sphere>
+    <a-sphere position="0.56 0.63 -0.1" radius="0.04" color="#40c040"></a-sphere>
+    <!-- Cat nose -->
+    <a-sphere position="0.58 0.57 0" radius="0.025" color="#ff9999"></a-sphere>
+    <!-- Cat tail (curved) -->
+    <a-cylinder position="-0.35 0.5 0" radius="0.06" height="0.7" rotation="0 0 -30" color="#b89050" segments-radial="6"></a-cylinder>
+    <!-- Cat legs -->
+    <a-cylinder position="0.1 0.1 0.15" radius="0.06" height="0.35" color="#c0a060" segments-radial="6"></a-cylinder>
+    <a-cylinder position="0.1 0.1 -0.15" radius="0.06" height="0.35" color="#c0a060" segments-radial="6"></a-cylinder>
+    <a-cylinder position="-0.1 0.1 0.15" radius="0.06" height="0.35" color="#b89050" segments-radial="6"></a-cylinder>
+    <a-cylinder position="-0.1 0.1 -0.15" radius="0.06" height="0.35" color="#b89050" segments-radial="6"></a-cylinder>
+  </a-entity>
+
+  <!-- Dog near entrance -->
+  <a-entity position="5 0 10">
+    <!-- Dog body -->
+    <a-box position="0 0.4 0" width="0.7" height="0.55" depth="1.1" color="#c8a050" shadow></a-box>
+    <!-- Dog head -->
+    <a-box position="0 0.65 0.65" width="0.5" height="0.45" depth="0.55" color="#c8a050"></a-box>
+    <!-- Snout -->
+    <a-box position="0 0.55 0.94" width="0.28" height="0.24" depth="0.3" color="#b89040"></a-box>
+    <!-- Dog nose -->
+    <a-sphere position="0 0.63 1.09" radius="0.06" color="#222"></a-sphere>
+    <!-- Dog eyes -->
+    <a-sphere position="0.16 0.72 0.9" radius="0.06" color="#1a1a1a"></a-sphere>
+    <a-sphere position="-0.16 0.72 0.9" radius="0.06" color="#1a1a1a"></a-sphere>
+    <!-- Dog ears -->
+    <a-box position="0.22 0.82 0.7" width="0.18" height="0.35" depth="0.12" color="#a07030" rotation="0 0 15"></a-box>
+    <a-box position="-0.22 0.82 0.7" width="0.18" height="0.35" depth="0.12" color="#a07030" rotation="0 0 -15"></a-box>
+    <!-- Dog tail (wagging animation) -->
+    <a-box position="0 0.65 -0.6" width="0.12" height="0.12" depth="0.45" color="#b09040"
+      animation="property: rotation; to: 0 30 20; dur: 500; loop: true; dir: alternate; easing: easeInOutSine;"></a-box>
+    <!-- Dog legs -->
+    <a-box position="0.25 0.1 0.35" width="0.18" height="0.4" depth="0.18" color="#c0984a"></a-box>
+    <a-box position="-0.25 0.1 0.35" width="0.18" height="0.4" depth="0.18" color="#c0984a"></a-box>
+    <a-box position="0.25 0.1 -0.35" width="0.18" height="0.4" depth="0.18" color="#c0984a"></a-box>
+    <a-box position="-0.25 0.1 -0.35" width="0.18" height="0.4" depth="0.18" color="#c0984a"></a-box>
+  </a-entity>
+
+  <!-- ==================== EXTERIOR LIGHTING ==================== -->
+  <!-- Garden lamp posts -->
+  <a-entity position="-4 0 9">
+    <a-cylinder radius="0.06" height="2.5" color="#555" segments-radial="6"></a-cylinder>
+    <a-sphere position="0 2.6 0" radius="0.2" color="#fffacd" material="emissive:#fffacd; emissiveIntensity:0.8;"></a-sphere>
+    <a-light type="point" position="0 2.5 0" intensity="0.7" color="#ffe8c0" distance="6"></a-light>
+  </a-entity>
+  <a-entity position="4 0 9">
+    <a-cylinder radius="0.06" height="2.5" color="#555" segments-radial="6"></a-cylinder>
+    <a-sphere position="0 2.6 0" radius="0.2" color="#fffacd" material="emissive:#fffacd; emissiveIntensity:0.8;"></a-sphere>
+    <a-light type="point" position="0 2.5 0" intensity="0.7" color="#ffe8c0" distance="6"></a-light>
+  </a-entity>
+  <!-- Pool area lamp posts -->
+  <a-entity position="-8 0 16">
+    <a-cylinder radius="0.06" height="2.5" color="#555" segments-radial="6"></a-cylinder>
+    <a-sphere position="0 2.6 0" radius="0.2" color="#fffacd" material="emissive:#fffacd; emissiveIntensity:0.8;"></a-sphere>
+    <a-light type="point" position="0 2.5 0" intensity="0.6" color="#ffe8c0" distance="5"></a-light>
+  </a-entity>
+  <a-entity position="8 0 16">
+    <a-cylinder radius="0.06" height="2.5" color="#555" segments-radial="6"></a-cylinder>
+    <a-sphere position="0 2.6 0" radius="0.2" color="#fffacd" material="emissive:#fffacd; emissiveIntensity:0.8;"></a-sphere>
+    <a-light type="point" position="0 2.5 0" intensity="0.6" color="#ffe8c0" distance="5"></a-light>
+  </a-entity>
+
+  <!-- ==================== DECORATIVE FLOATING BALLOONS ==================== -->
+  <a-sphere position="-2 3.5 5" radius="0.25" color="#ef4444" float-anim="speed:0.7; height:0.3"
+    material="opacity:0.9; transparent:true;"></a-sphere>
+  <a-sphere position="2 4 5" radius="0.22" color="#f97316" float-anim="speed:0.9; height:0.25"
+    material="opacity:0.9; transparent:true;"></a-sphere>
+  <a-sphere position="0 4.5 5.5" radius="0.2" color="#a855f7" float-anim="speed:1.1; height:0.2"
+    material="opacity:0.9; transparent:true;"></a-sphere>
+  <!-- Strings -->
+  <a-cylinder position="-2 2.8 5" radius="0.01" height="1.4" color="#888" segments-radial="4"></a-cylinder>
+  <a-cylinder position="2 3.2 5" radius="0.01" height="1.6" color="#888" segments-radial="4"></a-cylinder>
+  <a-cylinder position="0 3.5 5.5" radius="0.01" height="1.8" color="#888" segments-radial="4"></a-cylinder>
+
+  <!-- ==================== ROTATING WEATHER VANE ON ROOF ==================== -->
+  <a-entity position="0 13 -3">
+    <a-cylinder radius="0.04" height="1.5" color="#c0a060" segments-radial="6"></a-cylinder>
+    <a-entity position="0 0.8 0" rotate-y="speed:20">
+      <a-cone position="0.8 0 0" radius-bottom="0.2" radius-top="0.01" height="0.6" rotation="0 0 -90" color="#d4af37"></a-cone>
+      <a-cone position="-0.8 0 0" radius-bottom="0.2" radius-top="0.01" height="0.6" rotation="0 0 90" color="#d4af37"></a-cone>
+    </a-entity>
+  </a-entity>
+
+  <!-- ==================== UPPER FLOOR BALCONY ==================== -->
+  <!-- Balcony floor -->
+  <a-box position="-2 6.25 9" width="12" height="0.3" depth="3" color="#d4c4a8" shadow></a-box>
+  <!-- Balcony railing -->
+  <a-box position="-2 7.5 10.4" width="12" height="2" depth="0.1" color="#e0d8c8" material="opacity:0.5; transparent:true;"></a-box>
+  <a-box position="-8 7.5 9" width="0.1" height="2" depth="3" color="#e0d8c8" material="opacity:0.5; transparent:true;"></a-box>
+  <a-box position="4 7.5 9" width="0.1" height="2" depth="3" color="#e0d8c8" material="opacity:0.5; transparent:true;"></a-box>
+  <!-- Balcony posts -->
+  <a-cylinder position="-8 7 10.4" radius="0.08" height="2" color="#c8b8a8" segments-radial="6"></a-cylinder>
+  <a-cylinder position="-4 7 10.4" radius="0.08" height="2" color="#c8b8a8" segments-radial="6"></a-cylinder>
+  <a-cylinder position="0 7 10.4" radius="0.08" height="2" color="#c8b8a8" segments-radial="6"></a-cylinder>
+  <a-cylinder position="4 7 10.4" radius="0.08" height="2" color="#c8b8a8" segments-radial="6"></a-cylinder>
+  <!-- Balcony furniture -->
+  <a-cylinder position="0 6.7 9" radius="0.5" height="0.1" color="#6b4226" segments-radial="10"></a-cylinder>
+  <a-cylinder position="0 6.4 9" radius="0.05" height="0.5" color="#5a3820" segments-radial="6"></a-cylinder>
+  <a-box position="-4 6.65 9" width="0.7" height="0.08" depth="0.6" color="#5c3d1e"></a-box>
+  <a-box position="-4 6.3 9" width="0.6" height="0.7" depth="0.1" color="#4a3018"></a-box>
+  <a-box position="3 6.65 9" width="0.7" height="0.08" depth="0.6" color="#5c3d1e"></a-box>
+  <a-box position="3 6.3 9" width="0.6" height="0.7" depth="0.1" color="#4a3018"></a-box>
+
+  <!-- ==================== CLOUDS (animated) ==================== -->
+  <a-entity position="-20 20 -10" animation="property: position; to: 20 20 -10; dur: 40000; loop: true; easing: linear;">
+    <a-sphere position="0 0 0" radius="3" color="#fff" material="opacity:0.85; transparent:true;"></a-sphere>
+    <a-sphere position="3 0.5 0" radius="2.2" color="#fff" material="opacity:0.85; transparent:true;"></a-sphere>
+    <a-sphere position="-3 0.3 0" radius="2" color="#fff" material="opacity:0.85; transparent:true;"></a-sphere>
+    <a-sphere position="1 1 0" radius="2" color="#fff" material="opacity:0.85; transparent:true;"></a-sphere>
+  </a-entity>
+  <a-entity position="30 18 -5" animation="property: position; to: -30 18 -5; dur: 55000; loop: true; easing: linear;">
+    <a-sphere position="0 0 0" radius="2.5" color="#fff" material="opacity:0.8; transparent:true;"></a-sphere>
+    <a-sphere position="2.5 0.3 0" radius="1.8" color="#fff" material="opacity:0.8; transparent:true;"></a-sphere>
+    <a-sphere position="-2.5 0.2 0" radius="1.6" color="#fff" material="opacity:0.8; transparent:true;"></a-sphere>
+  </a-entity>
+
+  <!-- ==================== FOUNTAIN (front garden) ==================== -->
+  <a-entity position="0 0 14">
+    <!-- Outer basin -->
+    <a-torus radius="1.5" tube="0.3" color="#c8b88a" segments-radial="20" segments-tubular="10"></a-torus>
+    <a-cylinder position="0 -0.2 0" radius="1.5" height="0.4" color="#c8b88a" segments-radial="16"></a-cylinder>
+    <!-- Center pillar -->
+    <a-cylinder position="0 0.5 0" radius="0.2" height="1.2" color="#b8a87a" segments-radial="8"></a-cylinder>
+    <!-- Top basin -->
+    <a-torus position="0 1.2 0" radius="0.7" tube="0.15" color="#c8b88a" segments-radial="16" segments-tubular="8"></a-torus>
+    <!-- Water jet (animated) -->
+    <a-cylinder position="0 1.4 0" radius="0.04" height="0.8" color="#60a5fa" material="opacity:0.7; transparent:true;" segments-radial="6"
+      animation="property: scale; to: 0.8 1.2 0.8; dur: 1000; loop: true; dir: alternate; easing: easeInOutSine;"></a-cylinder>
+    <a-sphere position="0 1.8 0" radius="0.1" color="#93c5fd" material="opacity:0.6; transparent:true;"
+      animation="property: position; to: 0 2.2 0; dur: 800; loop: true; dir: alternate; easing: easeInOutSine;"></a-sphere>
+    <!-- Water pool -->
+    <a-cylinder position="0 -0.05 0" radius="1.4" height="0.1" color="#1e90ff" material="opacity:0.6; transparent:true;" segments-radial="20"></a-cylinder>
+    <a-light type="point" position="0 0.5 0" intensity="0.5" color="#60a5fa" distance="4"></a-light>
+  </a-entity>
+
+  <!-- ==================== COMPOUND PERIMETER FENCE ==================== -->
+  <!--
+    Compound boundary: a rectangular perimeter wall/fence surrounding the entire villa.
+    Layout (world units):
+      Front (z = +32): road-facing wall with main entrance gate
+      Back  (z = -18): rear wall
+      Left  (x = -28): left side wall
+      Right (x = +30): right side wall
+
+    Construction: stone/brick base + rendered plaster pillars every ~6 m,
+    with black wrought-iron railings between pillars.
+  -->
+
+  <!-- ========== FENCE HELPER MACRO (repeated sections) ========== -->
+
+  <!-- ---- FRONT WALL (z = 32) ---- -->
+  <!-- Left half of front: x from -28 to -6 (gate opening from -5 to +5) -->
+  <!-- Continuous stone base left -->
+  <a-box position="-16.5 0.3 32" width="22" height="0.6" depth="0.55" color="#9b8870" shadow></a-box>
+  <!-- Plaster wall panel left -->
+  <a-box position="-16.5 1.4 32" width="22" height="1.8" depth="0.45" color="#e8e0d4"></a-box>
+  <!-- Top coping left -->
+  <a-box position="-16.5 2.35 32" width="22.2" height="0.22" depth="0.62" color="#c8b8a0"></a-box>
+
+  <!-- Right half of front: x from +6 to +30 -->
+  <a-box position="18 0.3 32" width="24" height="0.6" depth="0.55" color="#9b8870" shadow></a-box>
+  <a-box position="18 1.4 32" width="24" height="1.8" depth="0.45" color="#e8e0d4"></a-box>
+  <a-box position="18 2.35 32" width="24.2" height="0.22" depth="0.62" color="#c8b8a0"></a-box>
+
+  <!-- Pillar: front-left corner -->
+  <a-box position="-28 1.5 32" width="0.8" height="3.2" depth="0.8" color="#c0a880"></a-box>
+  <a-box position="-28 3.18 32" width="1.1" height="0.25" depth="1.1" color="#b09870"></a-box>
+  <a-sphere position="-28 3.4 32" radius="0.22" color="#d4af37"></a-sphere>
+
+  <!-- Pillars along front left half (every ~5.5 units) -->
+  <a-box position="-22.5 1.5 32" width="0.7" height="3.0" depth="0.7" color="#c8b090"></a-box>
+  <a-box position="-22.5 3.08 32" width="1.0" height="0.22" depth="1.0" color="#b8a080"></a-box>
+  <a-box position="-17 1.5 32" width="0.7" height="3.0" depth="0.7" color="#c8b090"></a-box>
+  <a-box position="-17 3.08 32" width="1.0" height="0.22" depth="1.0" color="#b8a080"></a-box>
+  <a-box position="-11.5 1.5 32" width="0.7" height="3.0" depth="0.7" color="#c8b090"></a-box>
+  <a-box position="-11.5 3.08 32" width="1.0" height="0.22" depth="1.0" color="#b8a080"></a-box>
+
+  <!-- Iron railing bars – front left (decorative) -->
+  <a-box position="-16.5 2.0 32.02" width="21" height="0.05" depth="0.06" color="#2a2a2a"></a-box>
+  <a-box position="-16.5 1.55 32.02" width="21" height="0.05" depth="0.06" color="#2a2a2a"></a-box>
+  <!-- Vertical railing bars every ~0.7 m -->
+  <a-box position="-25 1.77 32.02" width="0.05" height="0.7" depth="0.05" color="#333"></a-box>
+  <a-box position="-24.3 1.77 32.02" width="0.05" height="0.7" depth="0.05" color="#333"></a-box>
+  <a-box position="-23.6 1.77 32.02" width="0.05" height="0.7" depth="0.05" color="#333"></a-box>
+  <a-box position="-21.8 1.77 32.02" width="0.05" height="0.7" depth="0.05" color="#333"></a-box>
+  <a-box position="-21.1 1.77 32.02" width="0.05" height="0.7" depth="0.05" color="#333"></a-box>
+  <a-box position="-20.4 1.77 32.02" width="0.05" height="0.7" depth="0.05" color="#333"></a-box>
+  <a-box position="-19.7 1.77 32.02" width="0.05" height="0.7" depth="0.05" color="#333"></a-box>
+  <a-box position="-18.9 1.77 32.02" width="0.05" height="0.7" depth="0.05" color="#333"></a-box>
+  <a-box position="-15.3 1.77 32.02" width="0.05" height="0.7" depth="0.05" color="#333"></a-box>
+  <a-box position="-14.6 1.77 32.02" width="0.05" height="0.7" depth="0.05" color="#333"></a-box>
+  <a-box position="-13.9 1.77 32.02" width="0.05" height="0.7" depth="0.05" color="#333"></a-box>
+  <a-box position="-13.2 1.77 32.02" width="0.05" height="0.7" depth="0.05" color="#333"></a-box>
+  <a-box position="-12.5 1.77 32.02" width="0.05" height="0.7" depth="0.05" color="#333"></a-box>
+
+  <!-- Gate pillars (grand, wider) -->
+  <a-box position="-5.5 2.2 32" width="1.1" height="4.6" depth="1.1" color="#c0a880" shadow></a-box>
+  <a-box position="-5.5 4.57 32" width="1.5" height="0.3" depth="1.5" color="#a89060"></a-box>
+  <a-sphere position="-5.5 4.82 32" radius="0.3" color="#d4af37"
+    material="emissive:#c8a030; emissiveIntensity:0.3;"></a-sphere>
+  <a-light type="point" position="-5.5 4.9 32" intensity="0.7" color="#ffe8a0" distance="6"></a-light>
+
+  <a-box position="5.5 2.2 32" width="1.1" height="4.6" depth="1.1" color="#c0a880" shadow></a-box>
+  <a-box position="5.5 4.57 32" width="1.5" height="0.3" depth="1.5" color="#a89060"></a-box>
+  <a-sphere position="5.5 4.82 32" radius="0.3" color="#d4af37"
+    material="emissive:#c8a030; emissiveIntensity:0.3;"></a-sphere>
+  <a-light type="point" position="5.5 4.9 32" intensity="0.7" color="#ffe8a0" distance="6"></a-light>
+
+  <!-- Entrance Gate – two leaves (black wrought iron, animated open) -->
+  <!-- Left gate leaf -->
+  <a-entity id="gate-left" position="-2.75 2.0 32">
+    <a-box position="0 0 0" width="4.9" height="3.2" depth="0.08" color="#1a1a1a"></a-box>
+    <!-- Horizontal rails -->
+    <a-box position="0 1.4 0.05" width="4.9" height="0.12" depth="0.06" color="#111"></a-box>
+    <a-box position="0 0.5 0.05" width="4.9" height="0.12" depth="0.06" color="#111"></a-box>
+    <a-box position="0 -0.5 0.05" width="4.9" height="0.12" depth="0.06" color="#111"></a-box>
+    <a-box position="0 -1.4 0.05" width="4.9" height="0.12" depth="0.06" color="#111"></a-box>
+    <!-- Vertical pickets -->
+    <a-box position="-2.0 0 0.06" width="0.1" height="3.4" depth="0.06" color="#222"></a-box>
+    <a-box position="-1.3 0 0.06" width="0.1" height="3.4" depth="0.06" color="#222"></a-box>
+    <a-box position="-0.6 0 0.06" width="0.1" height="3.4" depth="0.06" color="#222"></a-box>
+    <a-box position="0.1 0 0.06" width="0.1" height="3.4" depth="0.06" color="#222"></a-box>
+    <a-box position="0.8 0 0.06" width="0.1" height="3.4" depth="0.06" color="#222"></a-box>
+    <a-box position="1.5 0 0.06" width="0.1" height="3.4" depth="0.06" color="#222"></a-box>
+    <a-box position="2.1 0 0.06" width="0.1" height="3.4" depth="0.06" color="#222"></a-box>
+    <!-- Spear tips on top pickets -->
+    <a-cone position="-2.0 1.8 0.06" radius-bottom="0.07" radius-top="0.01" height="0.22" color="#d4af37"></a-cone>
+    <a-cone position="-1.3 1.8 0.06" radius-bottom="0.07" radius-top="0.01" height="0.22" color="#d4af37"></a-cone>
+    <a-cone position="-0.6 1.8 0.06" radius-bottom="0.07" radius-top="0.01" height="0.22" color="#d4af37"></a-cone>
+    <a-cone position="0.1 1.8 0.06" radius-bottom="0.07" radius-top="0.01" height="0.22" color="#d4af37"></a-cone>
+    <a-cone position="0.8 1.8 0.06" radius-bottom="0.07" radius-top="0.01" height="0.22" color="#d4af37"></a-cone>
+    <a-cone position="1.5 1.8 0.06" radius-bottom="0.07" radius-top="0.01" height="0.22" color="#d4af37"></a-cone>
+    <a-cone position="2.1 1.8 0.06" radius-bottom="0.07" radius-top="0.01" height="0.22" color="#d4af37"></a-cone>
+    <!-- Gold badge / monogram in centre -->
+    <a-torus position="0 0.4 0.1" radius="0.45" tube="0.06" color="#d4af37" segments-radial="16" segments-tubular="8"></a-torus>
+    <a-box position="0 0.4 0.12" width="0.06" height="0.6" depth="0.04" color="#d4af37"></a-box>
+  </a-entity>
+
+  <!-- Right gate leaf -->
+  <a-entity id="gate-right" position="2.75 2.0 32">
+    <a-box position="0 0 0" width="4.9" height="3.2" depth="0.08" color="#1a1a1a"></a-box>
+    <a-box position="0 1.4 0.05" width="4.9" height="0.12" depth="0.06" color="#111"></a-box>
+    <a-box position="0 0.5 0.05" width="4.9" height="0.12" depth="0.06" color="#111"></a-box>
+    <a-box position="0 -0.5 0.05" width="4.9" height="0.12" depth="0.06" color="#111"></a-box>
+    <a-box position="0 -1.4 0.05" width="4.9" height="0.12" depth="0.06" color="#111"></a-box>
+    <a-box position="-2.0 0 0.06" width="0.1" height="3.4" depth="0.06" color="#222"></a-box>
+    <a-box position="-1.3 0 0.06" width="0.1" height="3.4" depth="0.06" color="#222"></a-box>
+    <a-box position="-0.6 0 0.06" width="0.1" height="3.4" depth="0.06" color="#222"></a-box>
+    <a-box position="0.1 0 0.06" width="0.1" height="3.4" depth="0.06" color="#222"></a-box>
+    <a-box position="0.8 0 0.06" width="0.1" height="3.4" depth="0.06" color="#222"></a-box>
+    <a-box position="1.5 0 0.06" width="0.1" height="3.4" depth="0.06" color="#222"></a-box>
+    <a-box position="2.1 0 0.06" width="0.1" height="3.4" depth="0.06" color="#222"></a-box>
+    <a-cone position="-2.0 1.8 0.06" radius-bottom="0.07" radius-top="0.01" height="0.22" color="#d4af37"></a-cone>
+    <a-cone position="-1.3 1.8 0.06" radius-bottom="0.07" radius-top="0.01" height="0.22" color="#d4af37"></a-cone>
+    <a-cone position="-0.6 1.8 0.06" radius-bottom="0.07" radius-top="0.01" height="0.22" color="#d4af37"></a-cone>
+    <a-cone position="0.1 1.8 0.06" radius-bottom="0.07" radius-top="0.01" height="0.22" color="#d4af37"></a-cone>
+    <a-cone position="0.8 1.8 0.06" radius-bottom="0.07" radius-top="0.01" height="0.22" color="#d4af37"></a-cone>
+    <a-cone position="1.5 1.8 0.06" radius-bottom="0.07" radius-top="0.01" height="0.22" color="#d4af37"></a-cone>
+    <a-cone position="2.1 1.8 0.06" radius-bottom="0.07" radius-top="0.01" height="0.22" color="#d4af37"></a-cone>
+    <a-torus position="0 0.4 0.1" radius="0.45" tube="0.06" color="#d4af37" segments-radial="16" segments-tubular="8"></a-torus>
+    <a-box position="0 0.4 0.12" width="0.06" height="0.6" depth="0.04" color="#d4af37"></a-box>
+  </a-entity>
+
+  <!-- Pillars along front right half -->
+  <a-box position="11 1.5 32" width="0.7" height="3.0" depth="0.7" color="#c8b090"></a-box>
+  <a-box position="11 3.08 32" width="1.0" height="0.22" depth="1.0" color="#b8a080"></a-box>
+  <a-box position="17 1.5 32" width="0.7" height="3.0" depth="0.7" color="#c8b090"></a-box>
+  <a-box position="17 3.08 32" width="1.0" height="0.22" depth="1.0" color="#b8a080"></a-box>
+  <a-box position="23 1.5 32" width="0.7" height="3.0" depth="0.7" color="#c8b090"></a-box>
+  <a-box position="23 3.08 32" width="1.0" height="0.22" depth="1.0" color="#b8a080"></a-box>
+  <!-- Front-right corner pillar -->
+  <a-box position="30 1.5 32" width="0.8" height="3.2" depth="0.8" color="#c0a880"></a-box>
+  <a-box position="30 3.18 32" width="1.1" height="0.25" depth="1.1" color="#b09870"></a-box>
+  <a-sphere position="30 3.4 32" radius="0.22" color="#d4af37"></a-sphere>
+
+  <!-- Iron railings front right -->
+  <a-box position="18 2.0 32.02" width="24" height="0.05" depth="0.06" color="#2a2a2a"></a-box>
+  <a-box position="18 1.55 32.02" width="24" height="0.05" depth="0.06" color="#2a2a2a"></a-box>
+  <a-box position="8 1.77 32.02" width="0.05" height="0.7" depth="0.05" color="#333"></a-box>
+  <a-box position="8.7 1.77 32.02" width="0.05" height="0.7" depth="0.05" color="#333"></a-box>
+  <a-box position="9.4 1.77 32.02" width="0.05" height="0.7" depth="0.05" color="#333"></a-box>
+  <a-box position="12.5 1.77 32.02" width="0.05" height="0.7" depth="0.05" color="#333"></a-box>
+  <a-box position="13.2 1.77 32.02" width="0.05" height="0.7" depth="0.05" color="#333"></a-box>
+  <a-box position="13.9 1.77 32.02" width="0.05" height="0.7" depth="0.05" color="#333"></a-box>
+  <a-box position="14.6 1.77 32.02" width="0.05" height="0.7" depth="0.05" color="#333"></a-box>
+  <a-box position="18.5 1.77 32.02" width="0.05" height="0.7" depth="0.05" color="#333"></a-box>
+  <a-box position="19.2 1.77 32.02" width="0.05" height="0.7" depth="0.05" color="#333"></a-box>
+  <a-box position="19.9 1.77 32.02" width="0.05" height="0.7" depth="0.05" color="#333"></a-box>
+  <a-box position="24.5 1.77 32.02" width="0.05" height="0.7" depth="0.05" color="#333"></a-box>
+  <a-box position="25.2 1.77 32.02" width="0.05" height="0.7" depth="0.05" color="#333"></a-box>
+  <a-box position="25.9 1.77 32.02" width="0.05" height="0.7" depth="0.05" color="#333"></a-box>
+  <a-box position="28.5 1.77 32.02" width="0.05" height="0.7" depth="0.05" color="#333"></a-box>
+  <a-box position="29.2 1.77 32.02" width="0.05" height="0.7" depth="0.05" color="#333"></a-box>
+
+  <!-- ---- BACK WALL (z = -18) ---- -->
+  <a-box position="1 0.3 -18" width="58" height="0.6" depth="0.55" color="#9b8870" shadow></a-box>
+  <a-box position="1 1.4 -18" width="58" height="1.8" depth="0.45" color="#e8e0d4"></a-box>
+  <a-box position="1 2.35 -18" width="58.2" height="0.22" depth="0.62" color="#c8b8a0"></a-box>
+  <!-- Back corner pillars -->
+  <a-box position="-28 1.5 -18" width="0.8" height="3.2" depth="0.8" color="#c0a880"></a-box>
+  <a-box position="-28 3.18 -18" width="1.1" height="0.25" depth="1.1" color="#b09870"></a-box>
+  <a-sphere position="-28 3.4 -18" radius="0.22" color="#d4af37"></a-sphere>
+  <a-box position="30 1.5 -18" width="0.8" height="3.2" depth="0.8" color="#c0a880"></a-box>
+  <a-box position="30 3.18 -18" width="1.1" height="0.25" depth="1.1" color="#b09870"></a-box>
+  <a-sphere position="30 3.4 -18" radius="0.22" color="#d4af37"></a-sphere>
+  <!-- Intermediate back pillars -->
+  <a-box position="-17 1.5 -18" width="0.7" height="3.0" depth="0.7" color="#c8b090"></a-box>
+  <a-box position="-17 3.08 -18" width="1.0" height="0.22" depth="1.0" color="#b8a080"></a-box>
+  <a-box position="-6 1.5 -18" width="0.7" height="3.0" depth="0.7" color="#c8b090"></a-box>
+  <a-box position="-6 3.08 -18" width="1.0" height="0.22" depth="1.0" color="#b8a080"></a-box>
+  <a-box position="5 1.5 -18" width="0.7" height="3.0" depth="0.7" color="#c8b090"></a-box>
+  <a-box position="5 3.08 -18" width="1.0" height="0.22" depth="1.0" color="#b8a080"></a-box>
+  <a-box position="18 1.5 -18" width="0.7" height="3.0" depth="0.7" color="#c8b090"></a-box>
+  <a-box position="18 3.08 -18" width="1.0" height="0.22" depth="1.0" color="#b8a080"></a-box>
+  <!-- Back railings -->
+  <a-box position="1 2.0 -18.02" width="58" height="0.05" depth="0.06" color="#2a2a2a"></a-box>
+  <a-box position="1 1.55 -18.02" width="58" height="0.05" depth="0.06" color="#2a2a2a"></a-box>
+
+  <!-- ---- LEFT WALL (x = -28) ---- -->
+  <a-box position="-28 0.3 7" width="0.55" height="0.6" depth="50" color="#9b8870" shadow></a-box>
+  <a-box position="-28 1.4 7" width="0.45" height="1.8" depth="50" color="#e8e0d4"></a-box>
+  <a-box position="-28 2.35 7" width="0.62" height="0.22" depth="50.2" color="#c8b8a0"></a-box>
+  <!-- Left intermediate pillars -->
+  <a-box position="-28 1.5 20" width="0.7" height="3.0" depth="0.7" color="#c8b090"></a-box>
+  <a-box position="-28 3.08 20" width="1.0" height="0.22" depth="1.0" color="#b8a080"></a-box>
+  <a-box position="-28 1.5 8" width="0.7" height="3.0" depth="0.7" color="#c8b090"></a-box>
+  <a-box position="-28 3.08 8" width="1.0" height="0.22" depth="1.0" color="#b8a080"></a-box>
+  <a-box position="-28 1.5 -4" width="0.7" height="3.0" depth="0.7" color="#c8b090"></a-box>
+  <a-box position="-28 3.08 -4" width="1.0" height="0.22" depth="1.0" color="#b8a080"></a-box>
+  <!-- Left railings -->
+  <a-box position="-28.02 2.0 7" width="0.06" height="0.05" depth="50" color="#2a2a2a"></a-box>
+  <a-box position="-28.02 1.55 7" width="0.06" height="0.05" depth="50" color="#2a2a2a"></a-box>
+
+  <!-- ---- RIGHT WALL (x = +30) ---- -->
+  <a-box position="30 0.3 7" width="0.55" height="0.6" depth="50" color="#9b8870" shadow></a-box>
+  <a-box position="30 1.4 7" width="0.45" height="1.8" depth="50" color="#e8e0d4"></a-box>
+  <a-box position="30 2.35 7" width="0.62" height="0.22" depth="50.2" color="#c8b8a0"></a-box>
+  <!-- Right intermediate pillars -->
+  <a-box position="30 1.5 20" width="0.7" height="3.0" depth="0.7" color="#c8b090"></a-box>
+  <a-box position="30 3.08 20" width="1.0" height="0.22" depth="1.0" color="#b8a080"></a-box>
+  <a-box position="30 1.5 8" width="0.7" height="3.0" depth="0.7" color="#c8b090"></a-box>
+  <a-box position="30 3.08 8" width="1.0" height="0.22" depth="1.0" color="#b8a080"></a-box>
+  <a-box position="30 1.5 -4" width="0.7" height="3.0" depth="0.7" color="#c8b090"></a-box>
+  <a-box position="30 3.08 -4" width="1.0" height="0.22" depth="1.0" color="#b8a080"></a-box>
+  <!-- Right railings -->
+  <a-box position="30.02 2.0 7" width="0.06" height="0.05" depth="50" color="#2a2a2a"></a-box>
+  <a-box position="30.02 1.55 7" width="0.06" height="0.05" depth="50" color="#2a2a2a"></a-box>
+
+  <!-- ---- GATE LAMP POSTS & GUARD BOOTH ---- -->
+  <!-- Intercom / Call box on left gate pillar -->
+  <a-box position="-4.8 1.4 32.6" width="0.3" height="0.45" depth="0.15" color="#333"></a-box>
+  <a-box position="-4.8 1.4 32.68" width="0.2" height="0.35" depth="0.04" color="#555"></a-box>
+  <a-cylinder position="-4.8 1.25 32.65" radius="0.04" height="0.05" color="#d4af37" segments-radial="8"></a-cylinder>
+
+  <!-- Small guard booth to the right of gate -->
+  <a-box position="8.5 1.2 31.5" width="2.5" height="2.4" depth="2.5" color="#e8e0d4" shadow></a-box>
+  <a-box position="8.5 2.45 31.5" width="2.8" height="0.3" depth="2.8" color="#c8b8a0"></a-box>
+  <!-- Booth window -->
+  <a-box position="8.5 1.4 32.78" width="1.2" height="0.8" depth="0.08" color="#b8d4e8" material="opacity:0.5; transparent:true;"></a-box>
+  <a-box position="8.5 1.4 32.82" width="1.3" height="0.9" depth="0.06" color="#8b7d5e"></a-box>
+  <!-- Booth door -->
+  <a-box position="9.5 1.1 30.28" width="0.9" height="2.1" depth="0.08" color="#5c3d1e"></a-box>
+  <!-- Security light above booth -->
+  <a-cylinder position="8.5 2.65 31.5" radius="0.12" height="0.08" color="#fffacd"
+    material="emissive:#fffacd; emissiveIntensity:0.7;" segments-radial="8"></a-cylinder>
+  <a-light type="point" position="8.5 2.6 31.5" intensity="0.6" color="#ffe0a0" distance="5"></a-light>
+
+  <!-- Driveway road markings (centre line from gate to house) -->
+  <a-box position="0 0.02 20" width="0.3" height="0.01" depth="24" color="#fff" material="opacity:0.6; transparent:true;"></a-box>
+
+  <!-- ==================== GARAGE ==================== -->
+  <a-box position="22 2.5 -5" width="8" height="5" depth="8" color="#e8e0d4" shadow></a-box>
+  <a-box position="22 0.05 -5" width="8" height="0.1" depth="8" color="#ccc"></a-box>
+  <!-- Garage door -->
+  <a-box position="22 2 -0.9" width="5" height="3.5" depth="0.2" color="#888" shadow></a-box>
+  <!-- Garage door panels -->
+  <a-box position="22 1.2 -0.8" width="4.8" height="0.8" depth="0.05" color="#777"></a-box>
+  <a-box position="22 2.0 -0.8" width="4.8" height="0.8" depth="0.05" color="#777"></a-box>
+  <a-box position="22 2.8 -0.8" width="4.8" height="0.8" depth="0.05" color="#777"></a-box>
+  <!-- Garage roof -->
+  <a-box position="22 5.2 -5" width="8.5" height="0.4" depth="8.5" color="#c8b8a8"></a-box>
+
+  <!-- ==================== CAMERA / PLAYER ==================== -->
+  <a-entity id="camera" position="0 1.6 38">
+    <a-camera wasd-controls="acceleration: 30" look-controls="reverseMouseDrag: false">
+      <!-- VR cursor -->
+      <a-cursor color="#d4af37" fuse="false" raycaster="objects: .interactive">
+        <a-animation attribute="scale" begin="fusing" to="0 0 0" dur="1500"></a-animation>
+      </a-cursor>
+    </a-camera>
+  </a-entity>
+
+</a-scene>
+
+</body>
+</html>

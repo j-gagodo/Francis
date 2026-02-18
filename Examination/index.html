@@ -5,59 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>DREAM HOUSE</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/aframe/1.4.2/aframe.min.js"></script>
-  <style>
-    body { margin: 0; overflow: hidden; background: #000; }
-    #loading-screen {
-      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%);
-      display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
-      z-index: 9999; transition: opacity 0.8s ease;
-    }
-    #loading-screen h1 {
-      color: #d4af37; font-family: 'Georgia', serif;
-      font-size: 2.5em; letter-spacing: 0.3em; margin-bottom: 10px;
-      text-shadow: 0 0 30px rgba(212,175,55,0.5);
-    }
-    #loading-screen p { color: #aaa; font-family: sans-serif; letter-spacing: 0.2em; }
-    .loader {
-      width: 200px; height: 3px; background: #222;
-      border-radius: 3px; margin-top: 30px; overflow: hidden;
-    }
-    .loader-bar {
-      height: 100%; width: 0%; background: linear-gradient(90deg, #d4af37, #f0d060);
-      border-radius: 3px; animation: load 2.5s ease forwards;
-    }
-    @keyframes load { to { width: 100%; } }
-    #ui-overlay {
-      position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-      display: flex; gap: 10px; z-index: 100; pointer-events: none;
-    }
-    .room-btn {
-      background: rgba(20,20,30,0.85); color: #d4af37;
-      border: 1px solid #d4af37; padding: 8px 16px;
-      border-radius: 20px; font-family: sans-serif; font-size: 12px;
-      cursor: pointer; pointer-events: all; letter-spacing: 0.1em;
-      transition: all 0.2s; backdrop-filter: blur(6px);
-    }
-    .room-btn:hover { background: rgba(212,175,55,0.2); }
-  </style>
 </head>
 <body>
-
-<div id="loading-screen">
-  <h1>✦ DREAM VILLA ✦</h1>
-  <p>LUXURY VR EXPERIENCE</p>
-  <div class="loader"><div class="loader-bar"></div></div>
-</div>
-
-<div id="ui-overlay">
-  <button class="room-btn" onclick="teleport(-2, 1.6, 2)">🛋 Living Room</button>
-  <button class="room-btn" onclick="teleport(-2, 1.6, -12)">🛏 Bedroom</button>
-  <button class="room-btn" onclick="teleport(8, 1.6, 2)">🍳 Kitchen</button>
-  <button class="room-btn" onclick="teleport(0, 1.6, 18)">🏊 Pool</button>
-  <button class="room-btn" onclick="teleport(0, 1.6, 30)">🚗 Gate</button>
-</div>
 
 <script>
   // Teleport function
@@ -1148,4 +1097,5 @@
 </a-scene>
 
 </body>
+
 </html>
